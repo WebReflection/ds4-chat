@@ -1,19 +1,23 @@
 import Queue from 'https://esm.run/gen-q';
 
+const { abs } = Math;
 const { parse, stringify } = JSON;
-const { max } = Math;
 const decoder = new TextDecoder;
 
 const chatOptions = {
   stream: true,
+  think: true,
 };
 
 const defaultOptions = {
   model: 'deepseek-v4-flash',
   version: 'v1',
-  history: 16,
   system: 'You are a helpful assistant.',
+  history: 8,
 };
+
+const data = (content, reasoning) => ({ content, reasoning });
+const message = (role, content) => ({ role, content });
 
 export default class DS4 {
   #history;
@@ -30,14 +34,14 @@ export default class DS4 {
       system = defaultOptions.system,
     } = defaultOptions,
   ) {
-    this.#url = new URL(`${url}/${version}`);
     this.#model = model;
-    this.#history = max(2, history) + 1;
-    this.#messages = [{ role: 'system', content: system }];
+    this.#url = new URL(`${url.replace(/\/+$/, '')}/${version}`);
+    this.#history = abs((parseInt(history, 10) || 0) * 2) + 1;
+    this.#messages = [message('system', system)];
   }
 
-  async *chat(content, { stream = true } = chatOptions) {
-    this.#messages.push({ role: 'user', content });
+  async *chat(content, { stream = true, think = true } = chatOptions) {
+    this.#messages.push(message('user', content));
 
     const items = new Queue;
 
@@ -50,6 +54,7 @@ export default class DS4 {
         model: this.#model,
         messages: this.#messages,
         stream,
+        think,
       }),
     });
 
@@ -60,8 +65,8 @@ export default class DS4 {
         (function next() {
           reader.read().then(({ done, value }) => {
             if (done) {
-              items.splice(0);
               controller.close();
+              setTimeout(() => items.splice(0), 300);
               return;
             }
             const text = decoder.decode(value);
@@ -89,14 +94,14 @@ export default class DS4 {
       const { content, reasoning_content } = delta;
       if (content) {
         answer.push(content);
-        yield { content, reasoning: null };
+        yield data(content, null);
       }
       else if (reasoning_content) {
-        yield { content: null, reasoning: reasoning_content };
+        yield data(null, reasoning_content);
       }
     }
 
-    if (this.#messages.push({ role: 'assistant', content: answer.join('') }) >= this.#history)
+    if (this.#messages.push(message('assistant', answer.join(''))) > this.#history)
       this.#messages.splice(1, 2);
   }
 

@@ -6,9 +6,13 @@ import DS4 from './ds4.js';
 
 const { ceil } = Math;
 
+let ds4, scrolling = true, noThinking = true;
+
 const storage = new JSONStorage;
 
-let ds4, scrolling = true, noThinking = true;
+const md = markdownit({
+  linkify: true,
+});
 
 const messages = el('< main .messages', {
   ['@scroll']() {
@@ -65,7 +69,7 @@ const submit = el('< .input [type="submit"]', {
 
     const user = el('div', {
       class: 'message user',
-      text: message,
+      html: md.render(message),
     });
 
     const waiting = el('div', {
@@ -76,7 +80,7 @@ const submit = el('< .input [type="submit"]', {
       class: 'message assistant',
     });
 
-    let c = 0, t = '⠋⠙⠹⠸⠹⠴⠦⠧'.split(''), wasScrolling = scrolling;
+    let wasScrolling = scrolling;
     const adjustScrolling = () => {
       if (wasScrolling) messages.scrollTop = messages.scrollHeight;
     };
@@ -84,18 +88,21 @@ const submit = el('< .input [type="submit"]', {
     messages.append(user, waiting, assistant);
     adjustScrolling();
 
-    let noContent = true;
+    let noContent = true, notReasoning = true;
 
-    for await (const { content, reasoning } of ds4.chat(message)) {
+    for await (const { content, reasoning } of ds4.chat(message, { think: !noThinking })) {
       wasScrolling = scrolling;
       if (reasoning) {
-        assistant.innerHTML = `${t[c++ % t.length]} <sub><sup>Thinking ...</sup></sub>`;
+        notReasoning = false;
+        assistant.textContent = '🤔';
         waiting.append(reasoning);
       }
       else {
         if (noContent) {
           noContent = false;
           assistant.textContent = '';
+          if (notReasoning)
+            waiting.textContent = '⛔';
         }
         assistant.append(content);
       }
@@ -108,7 +115,6 @@ const submit = el('< .input [type="submit"]', {
     submit.disabled = false;
     input.focus();
 
-    const md = markdownit();
     assistant.innerHTML = md.render(assistant.textContent);
     assistant.classList.add('markdown');
   },
