@@ -12,3 +12,5 @@ To start the server in a way compatible with this project run the following comm
 Reach your localhost and insert the remote *IP* of the **ds4-server** machine, example `http://192.168.100.20:8000`.
 
 Connect and chat, feeling free to enable/disabled thinking (*reasoning*) mode via the toggle.
+
+<img width="1331" height="1111" alt="ds4-chat" src="https://github.com/user-attachments/assets/2e27bd8b-b47a-4696-801c-7c9ec61a6fdc" />
