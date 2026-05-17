@@ -1,7 +1,7 @@
+import JSONStorage from 'https://esm.run/@webreflection/utils/json-storage';
 import el from 'https://esm.run/@webreflection/element';
 import markdownit from 'https://esm.run/markdown-it';
 
-import JSONStorage from './json-storage.js';
 import DS4 from './ds4.js';
 
 const { ceil } = Math;
