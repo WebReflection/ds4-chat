@@ -1,12 +1,24 @@
 import JSONStorage from 'https://esm.run/@webreflection/utils/json-storage';
 import el from 'https://esm.run/@webreflection/element';
+import hljs from 'https://esm.run/highlight.js';
 import markdownit from 'https://esm.run/markdown-it';
 
 import DS4 from './ds4.js';
 
 const { ceil } = Math;
 
-let ds4, scrolling = true, noThinking = true;
+let init = 0, ds4, scrolling = true, noThinking = true;
+
+const theme = getComputedStyle(document.documentElement).getPropertyValue('--theme');
+
+el('< head', null, el(
+  'link',
+  {
+    rel: 'stylesheet',
+    href: `https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/styles/${theme === 'dark' ? 'dark' : 'default'}.min.css`,
+  },
+));
+
 
 const storage = new JSONStorage;
 
@@ -23,7 +35,7 @@ const messages = el('< main .messages', {
 
 const input = el('< .input [type="text"]', {
   ['@keypress'](event) {
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+    if (event.key === 'Enter' /* && (event.ctrlKey || event.metaKey) */) {
       event.preventDefault();
       submit.click();
     }
@@ -42,24 +54,41 @@ const checkbox = el('< [type="checkbox"]', {
 const submit = el('< .input [type="submit"]', {
   ['@click']: async function (event) {
     event.preventDefault();
-    const message = input.value.trim();
-    if (!message) return;
+    let message = input.value.trim();
 
-    if (!ds4) {
+    if (init < 1) {
+      if (!message) return;
+      if (!/^\w+:/.test(message)) message = `http://${message}`;
       if (await fetch(message, { method: 'OPTIONS' }).then(r => r.ok)) {
-        ds4 = new DS4(message);
-
-        input.value = '';
-        input.placeholder = 'Ask me anything...';
-        submit.value = 'Send';
-
-        messages.append(el('div', {
-          class: 'message assistant',
-          text: 'Welcome back! 👋 How can I help you today?',
-        }));
+        input.placeholder = 'System prompt...';
+        input.value = storage.get('system') ?? 'You are a helpful assistant.';
+        submit.value = 'System';
 
         storage.set('ds4', message);
+
+        init++;
       }
+      else alert('Invalid URL');
+      return;
+    }
+
+    else if (init < 2) {
+      if (!message) message = 'You are a helpful assistant.';
+
+      input.placeholder = 'Ask me anything...';
+      input.value = '';
+      submit.value = 'Send';
+
+      storage.set('system', message);
+
+      init++;
+
+      messages.append(el('div', {
+        class: 'message assistant',
+        text: 'Welcome back! 👋 How can I help you today?',
+      }));
+
+      ds4 = new DS4(storage.get('ds4'), { system: message });
       return;
     }
 
@@ -78,12 +107,15 @@ const submit = el('< .input [type="submit"]', {
 
     const assistant = el('div', {
       class: 'message assistant',
+      style: 'tab-size: 2; white-space: pre-wrap;',
     });
 
     let wasScrolling = scrolling;
     const adjustScrolling = () => {
       if (wasScrolling) messages.scrollTop = messages.scrollHeight;
     };
+
+    // Image.prototype.onload = adjustScrolling;
 
     messages.append(user, waiting, assistant);
     adjustScrolling();
@@ -115,11 +147,27 @@ const submit = el('< .input [type="submit"]', {
     submit.disabled = false;
     input.focus();
 
-    assistant.innerHTML = md.render(assistant.textContent);
     assistant.classList.add('markdown');
+    assistant.style.cssText = '';
+    assistant.innerHTML = md.render(assistant.textContent);
+    for (const code of assistant.querySelectorAll('pre code')) {
+      hljs.highlightElement(code);
+    }
+
+    let promises = [];
+    for (const img of assistant.querySelectorAll('img')) {
+      promises.push(new Promise((res, rej) => {
+        img.addEventListener('load', res, { once: true });
+        img.addEventListener('error', rej, { once: true });
+      }));
+    }
+
+    await Promise.all(promises);
+    adjustScrolling();
   },
 });
 
-input.value = storage.get('ds4') ?? ''; // http://192.168.178.91:8000
+// system = storage.get('system') ?? 'You are a helpful assistant.';
+input.value = storage.get('ds4') ?? ''; // http://192.168.178.91:8080
 checkbox.checked = storage.get('noThinking') ?? false;
 checkbox.dispatchEvent(new Event('change'));
