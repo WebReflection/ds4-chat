@@ -6,9 +6,11 @@ import markdownit from 'https://esm.run/markdown-it';
 import DS4 from './ds4.js';
 
 const { ceil } = Math;
+const { parse } = JSON;
 
 let init = 0, ds4, scrolling = true, noThinking = true;
 
+const temp = () => parse(temperature.value);
 const theme = getComputedStyle(document.documentElement).getPropertyValue('--theme');
 
 el('< head', null, el(
@@ -48,6 +50,14 @@ const checkbox = el('< [type="checkbox"]', {
     noThinking = !checked;
     messages.classList.toggle('hide-thinking', noThinking);
     storage.set('noThinking', checked);
+  },
+});
+
+const temperature = el('< [type="range"]', {
+  ['@input']() {
+    const value = temp();
+    temperature.nextSibling.textContent = `Temp: ${value.toFixed(2)}`;
+    storage.set('temperature', value);
   },
 });
 
@@ -122,7 +132,10 @@ const submit = el('< .input [type="submit"]', {
 
     let noContent = true, notReasoning = true;
 
-    for await (const { content, reasoning } of ds4.chat(message, { think: !noThinking })) {
+    for await (const { content, reasoning } of ds4.chat(message, {
+      think: !noThinking,
+      temperature: temp(),
+    })) {
       wasScrolling = scrolling;
       if (reasoning) {
         notReasoning = false;
@@ -171,3 +184,6 @@ const submit = el('< .input [type="submit"]', {
 input.value = storage.get('ds4') ?? ''; // http://192.168.178.91:8080
 checkbox.checked = storage.get('noThinking') ?? false;
 checkbox.dispatchEvent(new Event('change'));
+
+temperature.value = storage.get('temperature') ?? 0;
+temperature.dispatchEvent(new Event('input'));

@@ -34,6 +34,19 @@
   }
 }
 
+h1 {
+  font-size: 1.5rem;
+}
+
+@media (max-width: 479px) {
+  h1 {
+    display: none;
+  }
+  input[type="range"] {
+    max-width: 64px;
+  }
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -226,6 +239,10 @@ button {
 
 input[type="text"] {
   flex: 1;
+}
+
+input[type="range"] {
+  padding: 0;
 }
 
 input[type="submit"],

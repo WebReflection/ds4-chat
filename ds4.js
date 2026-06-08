@@ -1,19 +1,20 @@
 import Queue from 'https://esm.run/gen-q';
 
-const { abs } = Math;
+const { abs, round, sqrt } = Math;
 const { parse, stringify } = JSON;
 const decoder = new TextDecoder;
 
 const chatOptions = {
   stream: true,
   think: true,
+  temperature: 0.0,
 };
 
-const defaultOptions = {
+const ds4Options = {
   model: 'deepseek-v4-flash',
   version: 'v1',
   system: 'You are a helpful assistant.',
-  history: 8,
+  history: 64,
 };
 
 const data = (content, reasoning) => ({ content, reasoning });
@@ -28,11 +29,11 @@ export default class DS4 {
   constructor(
     url,
     {
-      model = defaultOptions.model,
-      version = defaultOptions.version,
-      history = defaultOptions.history,
-      system = defaultOptions.system,
-    } = defaultOptions,
+      model = ds4Options.model,
+      version = ds4Options.version,
+      history = ds4Options.history,
+      system = ds4Options.system,
+    } = ds4Options,
   ) {
     this.#model = model;
     this.#url = new URL(`${url.replace(/\/+$/, '')}/${version}`);
@@ -40,7 +41,14 @@ export default class DS4 {
     this.#messages = [message('system', system)];
   }
 
-  async *chat(content, { stream = true, think = true } = chatOptions) {
+  async *chat(
+    content,
+    {
+      stream = chatOptions.stream,
+      temperature = chatOptions.temperature,
+      think = chatOptions.think,
+    } = chatOptions
+  ) {
     this.#messages.push(message('user', content));
 
     const items = new Queue;
@@ -54,6 +62,7 @@ export default class DS4 {
         model: this.#model,
         messages: this.#messages,
         stream,
+        temperature,
         think,
       }),
     });
@@ -102,7 +111,6 @@ export default class DS4 {
     }
 
     if (this.#messages.push(message('assistant', answer.join(''))) > this.#history)
-      this.#messages.splice(1, 2);
+      this.#messages.splice(1, round(sqrt(this.#history)));
   }
-
 }
